@@ -1,4 +1,7 @@
 import yaml
+
+import rx.operators as ops
+
 import cyclotron_std.sys.argv as argv
 import cyclotron_std.argparse as argparse
 import cyclotron_std.io.file as file
@@ -11,7 +14,7 @@ def parse_config(config_data):
     config = config_data.pipe(
         ops.filter(lambda i: i.id == "config"),
         ops.flat_map(lambda i: i.data),
-        ops.map(yaml.load),
+        ops.map(lambda i:yaml.load(i, Loader=yaml.FullLoader)),
         ops.share()
     )
 
@@ -30,15 +33,18 @@ def parse_arguments(argv, prog=None):
     )
 
 
-def read_config_from_args(argv, file):
+def read_config_from_args(argv, file_response, scheduler=None):
     args = parse_arguments(argv)
 
     read_request, read_response = args.pipe(
         ops.map(lambda i: file.Read(id='config', path=i.value)),
-        file.read(sources.file.response),
+        file.read(file_response),
     )
-    read_request = read_request.pipe(
-        ops.subscribe_on(aio_scheduler),
-    )
+
+    if scheduler is not None:
+        read_request = read_request.pipe(
+            ops.subscribe_on(scheduler),
+        )
+
     config = parse_config(read_response)
-    return config
+    return config, read_request

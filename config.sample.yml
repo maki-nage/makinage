@@ -1,0 +1,14 @@
+kafka:
+  endpoint: "localhost"
+topics:
+  -
+    name: values
+  -
+    name: multiplied_values
+operators:
+  multiply:
+    factory: makinage.sample.processor:multiply
+    sources:
+      - values
+    sinks:
+      - multiplied_values

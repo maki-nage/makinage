@@ -1,0 +1,11 @@
+__pycache__
+build
+_build
+dist
+*.egg-info
+.tox
+.ropeproject
+.vscode
+.eggs
+.DS_Store
+*.pyc

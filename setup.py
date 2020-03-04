@@ -21,6 +21,8 @@ python_requires = '>=3.6'
 install_requires = [
     'Rx>=3.0',
     'PyYAML>=5.3',
+    'cyclotron>=1.1',
+    'cyclotron-std>=1.0',
 ]
 
 setup(
