@@ -36,20 +36,15 @@ def makinage(aio_scheduler, sources):
         scheduler=aio_scheduler
     )
     
-    config.pipe(
+    kafka_request = config.pipe(
         ops.take(1),
-        ops.flat_map(lambda i: create_operators(i, rx.just(
-            Values(id='values', observable=rx.from_([1, 2]))
-        ))),
+        ops.flat_map(lambda i: create_operators(i, sources.kafka.response)),
         trace_observable("makinage1"),
-        ops.filter(lambda i: type(i) is kafka.Producer),
-        ops.flat_map(lambda i: i.topics),
-        ops.flat_map(lambda i: i.records),
+        #ops.filter(lambda i: type(i) is kafka.Producer),
+        #ops.flat_map(lambda i: i.topics),
+        #ops.flat_map(lambda i: i.records),
         ops.subscribe_on(aio_scheduler),
         trace_observable("makinage"),
-    ).subscribe(
-        on_next=lambda i: print("makinage item: {}".format(i)),
-        on_error=lambda e: print('makinage error: {}'.format(e)),
     )
 
     '''
@@ -61,7 +56,7 @@ def makinage(aio_scheduler, sources):
 
     return MakiNageSink(
         file=file.Sink(request=read_request),
-        kafka=kafka.Sink(request=rx.never()),
+        kafka=kafka.Sink(request=kafka_request),
     )
 
 
