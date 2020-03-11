@@ -2,6 +2,7 @@ from importlib import import_module
 import rx
 import rx.operators as ops
 
+from cyclotron.debug import trace_observable
 
 def import_function(spec):
     spec = spec.split(':')
@@ -13,22 +14,31 @@ def import_function(spec):
 
 
 def create_operators(config, kafka_source):
-    operators = []
-    kafka_sink_items = []
-    for k, operator in config['operators'].items():
-        factory = import_function(operator['factory'])
-        sources = []        
-        for source in operator['sources']:
-            print('create source {}'.format(source))
-            sources.append(kafka_source.pipe(
-                ops.filter(lambda i: i.id == source),
-                ops.flat_map(lambda i: i.observable)
-            ))
+    ''' creates the operators declared in config
+
+    Returns:
+        An observable containing tuples of (topic, observable).
+    '''
+    try:
+        kafka_sink_items = []
+        for k, operator in config['operators'].items():
+            factory = import_function(operator['factory'])
+            sources = []        
+            for source in operator['sources']:
+                print('create source {}'.format(source))
+                sources.append(kafka_source.pipe(
+                    ops.filter(lambda i: i.id == source),
+                    ops.flat_map(lambda i: i.observable),
+                ))
+            
+            print(sources)
+            sinks = factory(config, *sources)
+            print("sinks: {}".format(sinks))
+            for index, sink in enumerate(operator['sinks']):
+                print('create sink {} at {}'.format(sink, index))
+                kafka_sink_items.append((sink, sinks[index]))
         
-        sinks = factory(config, *sources)
-        for sink in operator['sinks']:
-            print('create sink {}'.format(sink))
-            kafka_sink_items.append(sink)
-    
-    kafka_sink = rx.from_(kafka_sink_items)
-    return kafka_sink
+        kafka_sink = rx.from_(kafka_sink_items)
+        return kafka_sink
+    except Exception as e:
+        print(e)

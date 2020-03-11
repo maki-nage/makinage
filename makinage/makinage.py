@@ -6,6 +6,7 @@ import rx
 import rx.operators as ops
 from rx.scheduler.eventloop import AsyncIOScheduler
 from cyclotron import Component
+from cyclotron.debug import trace_observable
 from cyclotron.asyncio.runner import run
 import cyclotron_std.io.file as file
 import cyclotron_std.sys.argv as argv
@@ -36,18 +37,23 @@ def makinage(aio_scheduler, sources):
     
     config.pipe(
         ops.take(1),
-        ops.map(lambda i: create_operators(i, rx.just(
+        ops.flat_map(lambda i: create_operators(i, rx.just(
             Values(id='values', observable=rx.from_([1, 2]))
-        )))
+        ))),
+        ops.flat_map(lambda i: i[1]),
+        ops.subscribe_on(aio_scheduler),
+        trace_observable("makinage"),
     ).subscribe(
-        on_next=print,
-        on_error=print,
+        on_next=lambda i: print("makinage item: {}".format(i)),
+        on_error=lambda e: print('makinage error: {}'.format(e)),
     )
 
+    '''
     config.pipe(ops.subscribe_on(aio_scheduler)).subscribe(
         on_next=print,
         on_error=print,
     )
+    '''
 
     return MakiNageSink(
         file=file.Sink(request=read_request),
