@@ -14,15 +14,16 @@ import cyclotron_std.sys.argv as argv
 from .config import read_config_from_args
 from .operator import create_operators
 
+import cyclotron_aiokafka as kafka
 
 MakiNageSink = namedtuple('MakiNageSink', [
-     'file',
+    'kafka', 'file',
 ])
 MakiNageSource = namedtuple('MakiNageSource', [
-    'file', 'argv',
+    'kafka', 'file', 'argv',
 ])
 MakiNageDrivers = namedtuple('MakiNageDrivers', [
-    'file', 'argv'
+    'kafka', 'file', 'argv'
 ])
 
 
@@ -40,7 +41,10 @@ def makinage(aio_scheduler, sources):
         ops.flat_map(lambda i: create_operators(i, rx.just(
             Values(id='values', observable=rx.from_([1, 2]))
         ))),
-        ops.flat_map(lambda i: i[1]),
+        trace_observable("makinage1"),
+        ops.filter(lambda i: type(i) is kafka.Producer),
+        ops.flat_map(lambda i: i.topics),
+        ops.flat_map(lambda i: i.records),
         ops.subscribe_on(aio_scheduler),
         trace_observable("makinage"),
     ).subscribe(
@@ -57,6 +61,7 @@ def makinage(aio_scheduler, sources):
 
     return MakiNageSink(
         file=file.Sink(request=read_request),
+        kafka=kafka.Sink(request=rx.never()),
     )
 
 
@@ -69,6 +74,7 @@ def main():
             call=partial(makinage, aio_scheduler),
             input=MakiNageSource),
         MakiNageDrivers(
+            kafka=kafka.make_driver(),
             file=file.make_driver(),
             argv=argv.make_driver(),
         ),
