@@ -35,11 +35,19 @@ def makinage(aio_scheduler, sources):
         sources.file.response,
         scheduler=aio_scheduler
     )
+
+    first_config = rx.concat(config.pipe(ops.take(1),), rx.never())
     
-    kafka_request = config.pipe(
-        ops.take(1),
-        ops.flat_map(lambda i: create_operators(i, sources.kafka.response)),
-        trace_observable("makinage1"),
+    kafka_source = sources.kafka.response.pipe(
+        trace_observable("kafka source1"),
+        ops.replay(),
+        ops.ref_count(),
+        trace_observable("kafka source2"),
+    )
+    kafka_source.subscribe()
+
+    kafka_request = first_config.pipe(
+        ops.flat_map(lambda i: create_operators(i, kafka_source)),
         #ops.filter(lambda i: type(i) is kafka.Producer),
         #ops.flat_map(lambda i: i.topics),
         #ops.flat_map(lambda i: i.records),

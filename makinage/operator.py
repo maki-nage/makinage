@@ -35,8 +35,10 @@ def create_operators(config, kafka_source):
                     topic=source
                 ))
                 sources.append(kafka_source.pipe(
-                    ops.filter(lambda i: i.id == source),
-                    ops.flat_map(lambda i: i.observable),
+                    trace_observable(prefix="kafka source"),
+                    ops.filter(lambda i: i.topic == source),  # CoonsumerRecords
+                    ops.flat_map(lambda i: i.records),  # CoonsumerRecord
+                    ops.map(lambda i: i.value),  # value
                 ))
             
             print(sources)
@@ -46,7 +48,8 @@ def create_operators(config, kafka_source):
                 print('create sink {} at {}'.format(sink, index))
                 producers.append(kafka.ProducerTopic(
                     topic=sink, 
-                    records=sinks[index]))
+                    records=sinks[index],
+                    key_mapper=lambda i: i))
 
         consumer = kafka.Consumer(
             server=config['kafka']['endpoint'],
