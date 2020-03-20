@@ -15,7 +15,8 @@ def parse_config(config_data):
         ops.filter(lambda i: i.id == "config"),
         ops.flat_map(lambda i: i.data),
         ops.map(lambda i:yaml.load(i, Loader=yaml.FullLoader)),
-        ops.share()
+        ops.replay(buffer_size=1),
+        ops.ref_count(),
     )
 
     return config

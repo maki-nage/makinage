@@ -12,3 +12,5 @@ operators:
       - values
     sinks:
       - multiplied_values
+config:
+  multiply: 3

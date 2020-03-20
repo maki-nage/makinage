@@ -14,7 +14,7 @@ def import_function(spec):
     return fn
 
 
-def create_operators(config, kafka_source):
+def create_operators(config, config_source, kafka_source):
     ''' creates the operators declared in config
 
     Args:
@@ -42,7 +42,7 @@ def create_operators(config, kafka_source):
                 ))
             
             print(sources)
-            sinks = factory(config, *sources)
+            sinks = factory(config_source, *sources)
             print("sinks: {}".format(sinks))
             for index, sink in enumerate(operator['sinks']):
                 print('create sink {} at {}'.format(sink, index))

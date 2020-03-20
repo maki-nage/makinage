@@ -1,10 +1,13 @@
 import rx.operators as ops
+import rxsci
 from cyclotron.debug import trace_observable
+
 
 def multiply(config, values):
     sink = values.pipe(
-        trace_observable("multiply"),
-        ops.map(lambda i: int(i.decode('utf-8')) * 2),
+        trace_observable("multiply 1"),
+        rxsci.with_latest_from(config),
+        ops.starmap(lambda i, c: int(i.decode('utf-8')) * c['config']['multiply']),
         trace_observable("multiplied"),
         ops.map(lambda i: str(i).encode('utf-8'))
     )
