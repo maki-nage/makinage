@@ -23,6 +23,7 @@ install_requires = [
     'PyYAML>=5.3',
     'cyclotron>=1.1',
     'cyclotron-std>=1.0',
+    'cyclotron-aiokafka>=0.1',
 ]
 
 setup(
@@ -50,6 +51,6 @@ setup(
         'Documentation': 'https://makinage.readthedocs.io',
     },
     entry_points={
-        'console_scripts': ['maki-nage=makinage.makinage:main'],
+        'console_scripts': ['makinage=makinage.makinage:main'],
     }
 )
