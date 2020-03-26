@@ -1,10 +1,9 @@
 kafka:
   endpoint: "localhost"
 topics:
-  -
-    name: values
-  -
-    name: multiplied_values
+  - name: values
+    encoding: makinage.encoding.string
+  - name: multiplied_values
 operators:
   multiply:
     factory: makinage.sample.processor:multiply

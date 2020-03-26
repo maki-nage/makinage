@@ -29,6 +29,7 @@ MakiNageDrivers = namedtuple('MakiNageDrivers', [
 
 Values = namedtuple('Values', ['id', 'observable'])
 
+
 def makinage(aio_scheduler, sources):
     config, read_request = read_config_from_args(
         sources.argv.argv,
@@ -37,7 +38,7 @@ def makinage(aio_scheduler, sources):
     )
 
     first_config = rx.concat(config.pipe(ops.take(1),), rx.never())
-    
+
     kafka_source = sources.kafka.response.pipe(
         trace_observable("kafka source1"),
         ops.replay(),
