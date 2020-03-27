@@ -26,7 +26,7 @@ def initialize_topics(config_topics):
     topics = {}
     for topic in config_topics:        
         if "encoder" in topic:
-            module = import_module(topic['name'])
+            module = import_module(topic['encoder'])
         else:
             module = import_module("makinage.encoding.string")
         encoder = getattr(module, "encoder")
@@ -62,7 +62,7 @@ def create_operators(config, config_source, kafka_source):
                         topic=source
                     ))
                     sources.append(kafka_source.pipe(
-                        trace_observable(prefix="kafka source"),
+                        trace_observable(prefix="kafka source", trace_next_payload=False),
                         ops.filter(lambda i: i.topic == source),  # CoonsumerRecords
                         ops.flat_map(lambda i: i.records),  # CoonsumerRecord
                         ops.map(lambda i: i.value),  # value

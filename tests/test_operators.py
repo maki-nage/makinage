@@ -4,7 +4,7 @@ from makinage.operator import initialize_topics
 def test_init_topics():
     config_topics = [
         {'name': 'foo'},
-        {'name': 'bar', 'encoding': 'makinage.encoding.string'},
+        {'name': 'bar', 'encoder': 'makinage.encoding.string'},
     ]
     topics = initialize_topics(config_topics)
     assert b'test' == topics['foo'].encode('test')
