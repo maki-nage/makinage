@@ -3,7 +3,7 @@ from kafka.partitioner.hashed import murmur2
 from aiokafka import AIOKafkaConsumer, TopicPartition
 
 
-async def load(loop, server, topic, group_id, batch_size=1, shuffle=False):
+async def pull(loop, server, topic, group_id, batch_size=1, shuffle=False):
     client = AIOKafkaConsumer(
         topic,
         loop=loop,
