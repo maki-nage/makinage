@@ -51,6 +51,8 @@ setup(
         'Documentation': 'https://makinage.readthedocs.io',
     },
     entry_points={
-        'console_scripts': ['makinage=makinage.makinage:main'],
+        'console_scripts': [
+            'makinage=makinage.makinage:main',
+        ],
     }
 )
