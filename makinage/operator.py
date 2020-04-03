@@ -1,3 +1,4 @@
+import random
 from collections import namedtuple
 from importlib import import_module
 import rx
@@ -21,7 +22,7 @@ def initialize_topics(config_topics):
 
     If no encoding os provided, then the string encoder is used by default.
     '''
-    Topic = namedtuple('Topic', ['encode', 'decode'])
+    Topic = namedtuple('Topic', ['encode', 'decode', 'map_partition'])
 
     topics = {}
     for topic in config_topics:        
@@ -31,9 +32,17 @@ def initialize_topics(config_topics):
             module = import_module("makinage.encoding.string")
         encoder = getattr(module, "encoder")
         encode, decode = encoder()
+
+        if "partition_selector" in topic:
+            map_partition = import_function(topic['partition_selector'])
+        else:
+            def r(i): return int(random.random() * 1000)
+            map_partition = r
+
         topics[topic['name']] = Topic(
             encode=encode,
             decode=decode,
+            map_partition=map_partition,
         )
 
     return topics
@@ -59,14 +68,16 @@ def create_operators(config, config_source, kafka_source):
                 for source in operator['sources']:
                     print('create source {}'.format(source))
                     consumers.append(kafka.ConsumerTopic(
-                        topic=source
+                        topic=source,
+                        group="{}-{}".format(k, source),
+                        decode=topics[source].decode,
                     ))
                     sources.append(kafka_source.pipe(
                         trace_observable(prefix="kafka source", trace_next_payload=False),
                         ops.filter(lambda i: i.topic == source),  # CoonsumerRecords
                         ops.flat_map(lambda i: i.records),  # CoonsumerRecord
-                        ops.map(lambda i: i.value),  # value
-                        ops.map(topics[source].decode),
+                        #ops.map(lambda i: i.value),  # value
+                        #ops.map(topics[source].decode),
                     ))
 
             print(sources)
@@ -76,11 +87,13 @@ def create_operators(config, config_source, kafka_source):
                 print('create sink {} at {}'.format(sink, index))
                 producers.append(kafka.ProducerTopic(
                     topic=sink, 
-                    records=sinks[index].pipe(
-                        ops.map(topics[sink].encode),
-                    ),
-                    key_mapper=lambda i: i)
-                )
+                    records=sinks[index],  #.pipe(
+                        #ops.map(topics[sink].encode),
+                    #),
+                    map_key=lambda i: None,
+                    encode=topics[sink].encode,
+                    map_partition=topics[sink].map_partition
+                ))
 
         kafka_sink = []
         if len(consumers) > 0:
