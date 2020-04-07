@@ -25,6 +25,17 @@ async def pull(loop, server, topic, group_id, batch_size=1, shuffle=False):
     current_partition = 0
     done = False
 
+    async def next_partition(current_partition):
+        current_partition += 1  # todo recursive
+        if current_partition >= len(partitions):
+            return None
+
+        current_offset = await client.position(partitions[current_partition])
+        if current_offset >= end_offsets[partitions[current_partition]]:
+            current_partition = await next_partition(current_partition)
+        print("remaining record: {}, partition: {}".format(remaining_records, current_partition))
+        return current_partition
+
     current_offset = await client.position(partitions[current_partition])
     if current_offset >= end_offsets[partitions[current_partition]]:
         done = True
@@ -39,11 +50,11 @@ async def pull(loop, server, topic, group_id, batch_size=1, shuffle=False):
 
             current_offset = await client.position(partitions[current_partition])
             if current_offset >= end_offsets[partitions[current_partition]]:
-                current_partition += 1  # todo recursive
-                if current_partition >= len(partitions):
+                current_partition = await next_partition(current_partition)
+                print("remaining record: {}, partition: {}".format(remaining_records, current_partition))
+                if current_partition is None:
                     done = True
-                yield(batch)
-                break
+                    break
 
         if len(batch) > 0:
             yield(batch)
