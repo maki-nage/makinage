@@ -1,9 +1,12 @@
+import asyncio
 import random
 from collections import namedtuple
 from importlib import import_module
 import rx
 import rx.operators as ops
+from rx.scheduler.eventloop import AsyncIOScheduler
 
+from cyclotron.backpressure import pid
 from cyclotron.debug import trace_observable
 import cyclotron_aiokafka as kafka
 
@@ -25,7 +28,7 @@ def initialize_topics(config_topics):
     Topic = namedtuple('Topic', ['encode', 'decode', 'map_partition'])
 
     topics = {}
-    for topic in config_topics:        
+    for topic in config_topics:
         if "encoder" in topic:
             module = import_module(topic['encoder'])
         else:
@@ -48,17 +51,48 @@ def initialize_topics(config_topics):
     return topics
 
 
-def create_operators(config, config_source, kafka_source):
+def initialize_regulators(config, kafka_feedback):
+    loop = asyncio.get_event_loop()
+    aio_scheduler = AsyncIOScheduler(loop=loop)
+
+    regulators = {}
+    for regulator in config:
+        control = pid(
+            rx.concat(rx.just(1000), rx.never()),
+            kafka_feedback.pipe(
+                trace_observable("regulator feedback"),
+                ops.filter(lambda i: i[0] == regulator['feedback']),
+                ops.map(lambda i: i[1])),
+            0.1, 0.1, 0.1, 5.0, aio_scheduler
+        ).pipe(
+            ops.map(lambda i: 1/i if i != 0 else 1.0),
+            ops.map(lambda i: max(min(i, 0.1), 0.0)),
+            trace_observable("regulator")
+        )
+
+        regulators[regulator['control']] = control
+
+    return regulators
+
+
+def create_operators(config, config_source, kafka_source, kafka_feedback):
     ''' creates the operators declared in config
 
     Args:
         config: a dict containing the configuration file. todo: observable.
-        kafka_source: The kafka response observable 
+        kafka_source: The kafka response observable
+        kafka_feedback: The kafka backpressure process feedback
     Returns:
         An observable containing tuples of (topic, observable).
     '''
     try:
         topics = initialize_topics(config['topics'])
+        if 'regulators' in config:
+            regulators = initialize_regulators(
+                config['regulators'],
+                kafka_feedback)
+        else:
+            regulators = {}
         producers = []
         consumers = []
         for k, operator in config['operators'].items():
@@ -71,13 +105,12 @@ def create_operators(config, config_source, kafka_source):
                         topic=source,
                         group="{}-{}".format(k, source),
                         decode=topics[source].decode,
+                        control=regulators[source] if source in regulators else None,
                     ))
                     sources.append(kafka_source.pipe(
                         trace_observable(prefix="kafka source", trace_next_payload=False),
-                        ops.filter(lambda i: i.topic == source),  # CoonsumerRecords
-                        ops.flat_map(lambda i: i.records),  # CoonsumerRecord
-                        #ops.map(lambda i: i.value),  # value
-                        #ops.map(topics[source].decode),
+                        ops.filter(lambda i: i.topic == source),  # ConsumerRecords
+                        ops.flat_map(lambda i: i.records),  # ConsumerRecord
                     ))
 
             print(sources)
@@ -86,10 +119,8 @@ def create_operators(config, config_source, kafka_source):
             for index, sink in enumerate(operator['sinks']):
                 print('create sink {} at {}'.format(sink, index))
                 producers.append(kafka.ProducerTopic(
-                    topic=sink, 
-                    records=sinks[index],  #.pipe(
-                        #ops.map(topics[sink].encode),
-                    #),
+                    topic=sink,
+                    records=sinks[index],
                     map_key=lambda i: None,
                     encode=topics[sink].encode,
                     map_partition=topics[sink].map_partition

@@ -48,10 +48,11 @@ def makinage(aio_scheduler, sources):
     kafka_source.subscribe()
 
     kafka_request = first_config.pipe(
-        ops.flat_map(lambda i: create_operators(i, config, kafka_source)),
-        #ops.filter(lambda i: type(i) is kafka.Producer),
-        #ops.flat_map(lambda i: i.topics),
-        #ops.flat_map(lambda i: i.records),
+        ops.flat_map(lambda i: create_operators(
+            i, config,
+            kafka_source,
+            sources.kafka.feedback.pipe(ops.share()),
+        )),
         ops.subscribe_on(aio_scheduler),
         trace_observable("makinage"),
     )
