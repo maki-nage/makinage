@@ -52,22 +52,19 @@ def initialize_topics(config_topics):
 
 
 def initialize_regulators(config, kafka_feedback):
-    loop = asyncio.get_event_loop()
-    aio_scheduler = AsyncIOScheduler(loop=loop)
-
     regulators = {}
     for regulator in config:
-        control = pid(
-            rx.concat(rx.just(1000), rx.never()),
-            kafka_feedback.pipe(
-                trace_observable("regulator feedback"),
-                ops.filter(lambda i: i[0] == regulator['feedback']),
-                ops.map(lambda i: i[1])),
-            0.1, 0.1, 0.1, 5.0, aio_scheduler
-        ).pipe(
-            ops.map(lambda i: 1/i if i != 0 else 1.0),
-            ops.map(lambda i: max(min(i, 0.1), 0.0)),
-            trace_observable("regulator")
+        control = kafka_feedback.pipe(
+            trace_observable("regulator feedback"),
+            ops.filter(lambda i: i[0] == regulator['feedback']),
+            ops.map(lambda i: i[1] / 1000),
+
+            pid(rx.concat(rx.just(1.0), rx.never()),
+                -0.001, -0.001, 0.0),
+
+            #ops.map(lambda i: 1/i if i != 0 else 1.0),
+            ops.map(lambda i: max(min(i, 0.01), 0.0)),
+            trace_observable("regulator"),
         )
 
         regulators[regulator['control']] = control
