@@ -1,5 +1,4 @@
 import asyncio
-from kafka.partitioner.hashed import murmur2
 from aiokafka import AIOKafkaConsumer, TopicPartition
 
 
