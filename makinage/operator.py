@@ -113,15 +113,16 @@ def create_operators(config, config_source, kafka_source, kafka_feedback):
             print(sources)
             sinks = factory(config_source, *sources)
             print("sinks: {}".format(sinks))
-            for index, sink in enumerate(operator['sinks']):
-                print('create sink {} at {}'.format(sink, index))
-                producers.append(kafka.ProducerTopic(
-                    topic=sink,
-                    records=sinks[index],
-                    map_key=lambda i: None,
-                    encode=topics[sink].encode,
-                    map_partition=topics[sink].map_partition
-                ))
+            if 'sinks' in operator:
+                for index, sink in enumerate(operator['sinks']):
+                    print('create sink {} at {}'.format(sink, index))
+                    producers.append(kafka.ProducerTopic(
+                        topic=sink,
+                        records=sinks[index],
+                        map_key=lambda i: None,
+                        encode=topics[sink].encode,
+                        map_partition=topics[sink].map_partition
+                    ))
 
         kafka_sink = []
         if len(consumers) > 0:
@@ -139,4 +140,4 @@ def create_operators(config, config_source, kafka_source, kafka_feedback):
         kafka_sink = rx.from_(kafka_sink) if len(kafka_sink) > 0 else rx.never()
         return kafka_sink
     except Exception as e:
-        print(e)
+        print("Error while creating operators".format(e))
