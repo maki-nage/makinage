@@ -5,11 +5,13 @@ from functools import partial
 import rx
 import rx.operators as ops
 from rx.scheduler.eventloop import AsyncIOScheduler
+
 from cyclotron import Component
 from cyclotron.debug import trace_observable
 from cyclotron.asyncio.runner import run
-import cyclotron_std.io.file as file
 import cyclotron_std.sys.argv as argv
+import cyclotron_std.io.file as file
+import cyclotron_aiohttp.http as http
 
 from .config import read_config_from_args
 from .operator import create_operators
@@ -17,13 +19,13 @@ from .operator import create_operators
 import cyclotron_aiokafka as kafka
 
 MakiNageSink = namedtuple('MakiNageSink', [
-    'kafka', 'file',
+    'kafka', 'http', 'file',
 ])
 MakiNageSource = namedtuple('MakiNageSource', [
-    'kafka', 'file', 'argv',
+    'kafka', 'http', 'file', 'argv',
 ])
 MakiNageDrivers = namedtuple('MakiNageDrivers', [
-    'kafka', 'file', 'argv'
+    'kafka', 'http', 'file', 'argv'
 ])
 
 
@@ -31,9 +33,10 @@ Values = namedtuple('Values', ['id', 'observable'])
 
 
 def makinage(aio_scheduler, sources):
-    config, read_request = read_config_from_args(
+    config, read_request, http_request = read_config_from_args(
         sources.argv.argv,
         sources.file.response,
+        sources.http.response,
         scheduler=aio_scheduler
     )
 
@@ -66,6 +69,7 @@ def makinage(aio_scheduler, sources):
 
     return MakiNageSink(
         file=file.Sink(request=read_request),
+        http=http.Sink(request=http_request),
         kafka=kafka.Sink(request=kafka_request),
     )
 
@@ -80,6 +84,7 @@ def main():
             input=MakiNageSource),
         MakiNageDrivers(
             kafka=kafka.make_driver(),
+            http=http.make_driver(),
             file=file.make_driver(),
             argv=argv.make_driver(),
         ),

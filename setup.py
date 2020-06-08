@@ -24,6 +24,7 @@ install_requires = [
     'cyclotron>=1.2',
     'cyclotron-std>=1.0',
     'cyclotron-aiokafka>=0.2',
+    'cyclotron-consul>=0.1',
 ]
 
 setup(

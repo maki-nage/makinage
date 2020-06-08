@@ -1,0 +1,4 @@
+redirect:
+  connector: "consul"
+  endpoint: "http://localhost:8500"
+  key: "myservice"

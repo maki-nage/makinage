@@ -1,5 +1,6 @@
 import asyncio
 import random
+import traceback
 from collections import namedtuple
 from importlib import import_module
 import rx
@@ -140,4 +141,5 @@ def create_operators(config, config_source, kafka_source, kafka_feedback):
         kafka_sink = rx.from_(kafka_sink) if len(kafka_sink) > 0 else rx.never()
         return kafka_sink
     except Exception as e:
-        print("Error while creating operators".format(e))
+        print("Error while creating operators: {}, {}".format(
+              e, traceback.format_exc()))
