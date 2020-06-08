@@ -2,7 +2,7 @@ kafka:
   endpoint: "localhost"
 topics:
   - name: values
-    encoding: makinage.encoding.string
+    encoder: makinage.encoding.string
   - name: multiplied_values
 operators:
   multiply:
