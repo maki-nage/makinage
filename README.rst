@@ -13,8 +13,8 @@ The Reactive Machine Learning Framework
     :target: https://github.com/maki-nage/makinage/actions?query=workflow%3A%22Python+package%22
     :alt: Github WorkFlows
 
-.. image:: https://readthedocs.org/projects/makinage/badge/?version=latest
-    :target: https://makinage.readthedocs.io/en/latest/?badge=latest
+.. image:: https://readthedocs.org/projects/maki-nage/badge/?version=latest
+    :target: https://maki-nage.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
 
 Key Features
