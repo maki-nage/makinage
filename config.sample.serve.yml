@@ -1,0 +1,21 @@
+kafka:
+  endpoint: "localhost"
+topics:
+  - name: data
+    encoder: makinage.encoding.json
+  - name: model
+    encoder: makinage.encoding.none
+  - name: predict
+    encoder: makinage.encoding.json
+operators:
+  serve:
+    factory: makinage.serve:serve
+    sources:
+      - data
+      - model
+    sinks:
+      - predict
+config:
+  serve:
+    - input_field: x
+    - output_field: pred

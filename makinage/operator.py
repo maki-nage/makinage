@@ -3,6 +3,7 @@ import random
 import traceback
 from collections import namedtuple
 from importlib import import_module
+
 import rx
 import rx.operators as ops
 from rx.scheduler.eventloop import AsyncIOScheduler
@@ -11,14 +12,7 @@ from cyclotron.backpressure import pid
 from cyclotron.debug import trace_observable
 import cyclotron_aiokafka as kafka
 
-
-def import_function(spec):
-    spec = spec.split(':')
-    module = spec[0]
-    fn = spec[1]
-    module = import_module(module)
-    fn = getattr(module, fn)
-    return fn
+from .util import import_function
 
 
 def initialize_topics(config_topics):
