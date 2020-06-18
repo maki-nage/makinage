@@ -16,6 +16,14 @@ meaning of each type is:
 * module: A string describing a python module. The syntax follows the python "import" notation, i.e. modules separated by dots.
 * function: A string describing a python function. The syntax is a module name followed by a function name. Both are separated by ":".
 
+
+application (object)
+---------------------
+
+This section contains information on the application.
+
+* name: The name of the application. This name is used as the kafka consumer group.
+
 kafka (object)
 ------------------
 
@@ -32,6 +40,7 @@ Each entry contains the following fields:
 * name: [string] values
 * encoder: [module, optional] The encoder used for kafka records. default: "makinage.encoding.string"
 * partition_selector: [module, optional]. default: int(random.random() * 1000)
+* start_from: [string, optional]. Defines how records are consumed on service reload. possible values are [end|beginning|last]. default: "end"
 
 operators (object)
 ------------------

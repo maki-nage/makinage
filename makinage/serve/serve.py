@@ -1,19 +1,24 @@
 import zipfile
 import io
 import tempfile
+from collections import namedtuple
+
 
 import rx.operators as ops
 import rxsci as rs
+from cyclotron.debug import trace_observable
 from makinage.util import import_function
 
 from mlflow.pyfunc import load_model
 from mlflow.pyfunc.backend import PyFuncBackend
 import numpy as np
 
+Transforms = namedtuple('Transforms', ['pre', 'post'])
 
-def load_model(data):
+def load_mlflow_model(data):
     with tempfile.TemporaryDirectory() as tmp:
-        with zipfile.ZipFile(io.BytesIO(data)) as artifact:
+        data = io.BytesIO(data)
+        with zipfile.ZipFile(data) as artifact:
             artifact.extractall(path=tmp)
             model = load_model(tmp)
             return model
@@ -21,23 +26,30 @@ def load_model(data):
 
 def create_model_predict(model):
     #return model.predict
+    print("create_model_predict: {}".format(type(model)))
     return model.keras_model.predict # temporary until mlflow #2830
 
 
-def predict(data, config, predict):
-    prediction = predict(data[config['config']['serve']['input_field']])
-    prediction = prediction.tolist()
+def infer(data, config, transforms, predict):
+    pre_data = transforms.pre(data[config['config']['serve']['input_field']])
+    prediction = predict(pre_data)
+    prediction = transforms.post(prediction)
     data[config['config']['serve']['output_field']] = prediction
     return data
 
 
-def create_prepare_function(config):
-    if 'prepare' in config['config']['serve']:
-        prepare = import_function(config['config']['serve']['prepare'])
+def create_transform_functions(config):
+    if 'pre_transform' in config['config']['serve']:
+        pre_transform = import_function(config['config']['serve']['pre_transform'])
     else:
-        prepare = np.array
+        pre_transform = np.array
 
-    return prepare
+    if 'post_transform' in config['config']['serve']:
+        post_transform = import_function(config['config']['serve']['post_transform'])
+    else:
+        post_transform = np.tolist
+
+    return Transforms(pre_transform, post_transform)
 
 
 def serve(config, model, data):
@@ -65,19 +77,21 @@ def serve(config, model, data):
         one set in output_field.
     '''
     predict = model.pipe(
-        ops.map(load_model),
+        trace_observable(prefix="model", trace_next_payload=False),
+        ops.map(load_mlflow_model),
         ops.map(create_model_predict),
     )
 
-    prepare = config.pipe(
-        ops.map(create_prepare_function)
+    transforms = config.pipe(
+        trace_observable(prefix="prepare", trace_next_payload=False),
+        ops.map(create_transform_functions)
     )
 
     prediction = data.pipe(
-        rs.with_latest_from(prepare),
-        ops.map(lambda i: i[1](i[0])),
-        rs.with_latest_from(config, predict),
-        ops.starmap(predict),
+        trace_observable(prefix="prediction1", trace_next_payload=False),
+        rs.with_latest_from(config, transforms, predict),
+        ops.starmap(infer),
+        trace_observable(prefix="prediction", trace_next_payload=False),
     )
 
     return prediction

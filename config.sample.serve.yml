@@ -1,3 +1,5 @@
+application:
+  name: my_model_serving
 kafka:
   endpoint: "localhost"
 topics:
@@ -5,14 +7,15 @@ topics:
     encoder: makinage.encoding.json
   - name: model
     encoder: makinage.encoding.none
+    start_from: last
   - name: predict
     encoder: makinage.encoding.json
 operators:
   serve:
     factory: makinage.serve:serve
     sources:
-      - data
       - model
+      - data      
     sinks:
       - predict
 config:

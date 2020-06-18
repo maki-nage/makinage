@@ -20,7 +20,7 @@ def initialize_topics(config_topics):
 
     If no encoding os provided, then the string encoder is used by default.
     '''
-    Topic = namedtuple('Topic', ['encode', 'decode', 'map_partition'])
+    Topic = namedtuple('Topic', ['encode', 'decode', 'map_partition', 'start_from'])
 
     topics = {}
     for topic in config_topics:
@@ -37,10 +37,16 @@ def initialize_topics(config_topics):
             def r(i): return int(random.random() * 1000)
             map_partition = r
 
+        if "start_from" in topic:
+            start_from = topic['start_from']
+        else:
+            start_from = 'end'
+
         topics[topic['name']] = Topic(
             encode=encode,
             decode=decode,
             map_partition=map_partition,
+            start_from=start_from,
         )
 
     return topics
@@ -66,6 +72,14 @@ def initialize_regulators(config, kafka_feedback):
 
     return regulators
 
+
+def create_source_observable(kafka_source, source):
+    return kafka_source.pipe(
+        trace_observable(prefix="kafka source {}".format(source)),
+        ops.filter(lambda i: i.topic == source),  # ConsumerRecords
+        trace_observable(prefix="kafka consumer records {}".format(source)),
+        ops.flat_map(lambda i: i.records),  # ConsumerRecord
+    )
 
 def create_operators(config, config_source, kafka_source, kafka_feedback):
     ''' creates the operators declared in config
@@ -95,15 +109,12 @@ def create_operators(config, config_source, kafka_source, kafka_feedback):
                     print('create source {}'.format(source))
                     consumers.append(kafka.ConsumerTopic(
                         topic=source,
-                        group="{}-{}".format(k, source),
                         decode=topics[source].decode,
                         control=regulators[source] if source in regulators else None,
+                        start_from=topics[source].start_from,
                     ))
-                    sources.append(kafka_source.pipe(
-                        trace_observable(prefix="kafka source", trace_next_payload=False),
-                        ops.filter(lambda i: i.topic == source),  # ConsumerRecords
-                        ops.flat_map(lambda i: i.records),  # ConsumerRecord
-                    ))
+
+                    sources.append(create_source_observable(kafka_source, source))
 
             print(sources)
             sinks = factory(config_source, *sources)
@@ -123,6 +134,7 @@ def create_operators(config, config_source, kafka_source, kafka_feedback):
         if len(consumers) > 0:
             kafka_sink.append(kafka.Consumer(
                 server=config['kafka']['endpoint'],
+                group=config['application']['name'],
                 topics=rx.from_(set(consumers)),
             ))
 

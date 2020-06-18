@@ -1,3 +1,5 @@
+application:
+  name: my_app
 kafka:
   endpoint: "localhost"
 topics:
