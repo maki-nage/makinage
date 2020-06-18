@@ -54,6 +54,7 @@ setup(
     entry_points={
         'console_scripts': [
             'makinage=makinage.makinage:main',
+            'makinage-model-publisher=makinage.model_publisher.model_publisher:main',
         ],
     }
 )

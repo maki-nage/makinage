@@ -1,0 +1,7 @@
+application:
+  name: makinage_model_publisher
+kafka:
+  endpoint: "localhost"
+models:
+  - topic: predictor_topic
+    path:  /opt/models/predictor.zip
