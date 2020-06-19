@@ -88,10 +88,8 @@ def serve(config, model, data):
     )
 
     prediction = data.pipe(
-        trace_observable(prefix="prediction1", trace_next_payload=False),
         rs.with_latest_from(config, transforms, predict),
         ops.starmap(infer),
-        trace_observable(prefix="prediction", trace_next_payload=False),
     )
 
-    return prediction
+    return prediction,
