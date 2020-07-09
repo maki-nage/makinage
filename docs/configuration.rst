@@ -39,7 +39,7 @@ Each entry contains the following fields:
 
 * name: [string] values
 * encoder: [module, optional] The encoder used for kafka records. default: "makinage.encoding.string"
-* partition_selector: [module, optional]. default: int(random.random() * 1000)
+* partition_selector: [function, optional]. default: int(random.random() * 1000)
 * start_from: [string, optional]. Defines how records are consumed on service reload. possible values are [end|beginning|last]. default: "end"
 
 operators (object)
