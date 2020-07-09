@@ -23,7 +23,7 @@ install_requires = [
     'PyYAML>=5.3',
     'cyclotron>=1.2',
     'cyclotron-std>=1.0',
-    'cyclotron-aiokafka>=0.2',
+    'cyclotron-aiokafka>=0.3',
     'cyclotron-consul>=0.1',
 ]
 
