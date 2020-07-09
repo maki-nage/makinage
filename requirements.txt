@@ -1,5 +1,4 @@
 Rx>=3.0
-rxsci>=0.5
 PyYAML>=5.3
 cyclotron>=1.1
 cyclotron-std>=1.0

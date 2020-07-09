@@ -1,2 +1,3 @@
 mlflow>=1.8
+rxsci>=0.5
 tensorflow>=2.2
