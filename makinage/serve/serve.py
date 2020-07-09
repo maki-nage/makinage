@@ -15,6 +15,7 @@ import numpy as np
 
 Transforms = namedtuple('Transforms', ['pre', 'post'])
 
+
 def load_mlflow_model(data):
     with tempfile.TemporaryDirectory() as tmp:
         data = io.BytesIO(data)
@@ -24,10 +25,11 @@ def load_mlflow_model(data):
             return model
 
 
-def create_model_predict(model):
-    #return model.predict
+def create_model_predict(model):    
     print("create_model_predict: {}".format(type(model)))
-    return model.keras_model.predict # temporary until mlflow #2830
+    if hasattr(model, 'keras'):
+        return model.keras_model.predict  # temporary until mlflow #2830
+    return model.predict
 
 
 def infer(data, config, transforms, predict):
@@ -47,7 +49,7 @@ def create_transform_functions(config):
     if 'post_transform' in config['config']['serve']:
         post_transform = import_function(config['config']['serve']['post_transform'])
     else:
-        post_transform = np.tolist
+        post_transform = list
 
     return Transforms(pre_transform, post_transform)
 
