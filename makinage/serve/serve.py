@@ -27,27 +27,33 @@ def load_mlflow_model(data):
 
 def create_model_predict(model):    
     print("create_model_predict: {}".format(type(model)))
-    if hasattr(model, 'keras'):
+    try:
         return model.keras_model.predict  # temporary until mlflow #2830
-    return model.predict
+    except Exception as e:
+        return model.predict
 
 
-def infer(data, config, transforms, predict):
-    pre_data = transforms.pre(data[config['config']['serve']['input_field']])
-    prediction = predict(pre_data)
-    prediction = transforms.post(prediction)
-    data[config['config']['serve']['output_field']] = prediction
-    return data
+def infer(data, transforms, predict):
+    try:
+        pre_data = transforms.pre(data)
+        prediction = predict(pre_data)
+        prediction = transforms.post(data, prediction)
+        return prediction
+    except Exception as e:
+        print("infer error: {}".format(e))
+        return None
 
 
 def create_transform_functions(config):
     if 'pre_transform' in config['config']['serve']:
         pre_transform = import_function(config['config']['serve']['pre_transform'])
+        pre_transform = pre_transform(config)
     else:
         pre_transform = np.array
 
     if 'post_transform' in config['config']['serve']:
         post_transform = import_function(config['config']['serve']['post_transform'])
+        post_transform = post_transform(config)
     else:
         post_transform = list
 
@@ -90,8 +96,9 @@ def serve(config, model, data):
     )
 
     prediction = data.pipe(
-        rs.with_latest_from(config, transforms, predict),
+        rs.with_latest_from(transforms, predict),
         ops.starmap(infer),
+        ops.filter(lambda i: i is not None),
     )
 
     return prediction,
