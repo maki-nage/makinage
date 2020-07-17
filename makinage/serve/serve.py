@@ -1,6 +1,7 @@
 import zipfile
 import io
 import tempfile
+import traceback
 from collections import namedtuple
 
 
@@ -25,11 +26,11 @@ def load_mlflow_model(data):
             return model
 
 
-def create_model_predict(model):    
+def create_model_predict(model):
     print("create_model_predict: {}".format(type(model)))
     try:
         return model.keras_model.predict  # temporary until mlflow #2830
-    except Exception as e:
+    except Exception:
         return model.predict
 
 
@@ -41,6 +42,7 @@ def infer(data, transforms, predict):
         return prediction
     except Exception as e:
         print("infer error: {}".format(e))
+        print(traceback.print_tb(e.__traceback__))
         return None
 
 
