@@ -26,12 +26,19 @@ def load_mlflow_model(data):
             return model
 
 
-def create_model_predict(model):
-    print("create_model_predict: {}".format(type(model)))
-    try:
-        return model.keras_model.predict  # temporary until mlflow #2830
-    except Exception:
-        return model.predict
+def create_model_predict(model, config):
+    print("creating inference: {}".format(type(model)))
+    if 'predict' in config['config']['serve']:
+        print("customizing inference with: {}".format(config['config']['serve']['predict']))
+        predict = import_function(config['config']['serve']['predict'])
+        predict = predict(model, config)
+    else:
+        try:
+            predict = model.keras_model.predict  # temporary until mlflow #2830
+        except Exception:
+            predict = model.predict
+
+    return predict
 
 
 def infer(data, transforms, predict):
@@ -57,7 +64,7 @@ def create_transform_functions(config):
         post_transform = import_function(config['config']['serve']['post_transform'])
         post_transform = post_transform(config)
     else:
-        post_transform = list
+        def post_transform(utterance, prediction): return utterance, prediction
 
     return Transforms(pre_transform, post_transform)
 
@@ -89,7 +96,8 @@ def serve(config, model, data):
     predict = model.pipe(
         trace_observable(prefix="model", trace_next_payload=False),
         ops.map(load_mlflow_model),
-        ops.map(create_model_predict),
+        ops.combine_latest(config),
+        ops.starmap(create_model_predict),
     )
 
     transforms = config.pipe(
@@ -98,7 +106,7 @@ def serve(config, model, data):
     )
 
     prediction = data.pipe(
-        rs.with_latest_from(transforms, predict),
+        rs.ops.with_latest_from(transforms, predict),
         ops.starmap(infer),
         ops.filter(lambda i: i is not None),
     )

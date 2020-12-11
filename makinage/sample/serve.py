@@ -1,3 +1,4 @@
+from collections import namedtuple
 
 
 def pre_transform(config):
@@ -17,3 +18,21 @@ def post_transform(config):
         return i
 
     return _transform
+
+
+def predict_zero(i):
+    return [0.0]
+
+
+ZeroModel = namedtuple('ZeroModel', ['predict'])
+ZeroModel.__new__.__defaults__ = (predict_zero,)
+
+
+def predict(model, config):
+    ratio = config['config']['serve']['ratio']
+
+    def _predict(i):
+        print(type(model))
+        return (model.predict(i)[0], i*ratio)
+
+    return _predict
