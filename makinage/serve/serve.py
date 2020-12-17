@@ -43,9 +43,11 @@ def create_model_predict(model, config):
 
 def infer(data, transforms, predict):
     try:
-        pre_data = transforms.pre(data)
-        prediction = predict(pre_data)
-        prediction = transforms.post(data, prediction)
+        prediction = transforms.pre(data)
+        if prediction is not None:
+            prediction = predict(prediction)
+        if prediction is not None:
+            prediction = transforms.post(data, prediction)
         return prediction
     except Exception as e:
         print("infer error: {}".format(e))
