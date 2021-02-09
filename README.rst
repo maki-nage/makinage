@@ -115,7 +115,7 @@ Create a configuration file:
         - name: data
         - name: features
     operators:
-        compute_house_features:
+        compute_features:
             factory: my_app:my_app
             sources:
                 - data
