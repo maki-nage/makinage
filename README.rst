@@ -4,7 +4,7 @@
 
 .. |makinage-logo| image:: https://github.com/maki-nage/makinage/raw/master/asset/makinage_logo.png
 
-The Reactive Machine Learning Framework
+Stream Processing Made Easy
 
 .. image:: https://badge.fury.io/py/makinage.svg
     :target: https://badge.fury.io/py/makinage
@@ -18,15 +18,28 @@ The Reactive Machine Learning Framework
     :alt: Documentation
 
 
-Maki Nage is a Reactive Data Science framework designed to work on streaming data.
+Maki Nage is a Python stream processing framework for data scientists. It
+provides **expressive** and **extensible** APIs, allowing to speed up the
+development of stream applications. It can be used to process **stream** and
+**batch** data. More than that, it allows to develop an application with batch
+data, and deploy it as a **Kafka micro-service**.
 
-This repository contains the Maki Nage CLI tools, used to deploy `RxSci
-<https://github.com/maki-nage/rxsci>`_ based applications on a Kafka cluster.
+`Read the book <https://www.makinage.org/doc/makinage-book/latest/index.html>`_
+to learn more.
+
+Main Features
+==============
+
+* **Expressive** and **Extensible** APIs: Maki-Nage is based on `ReactiveX <https://github.com/ReactiveX/RxPY>`_.
+* Deployment Ready: Maki-Nage uses **Kafka** to scale the workload, and be resilient to errors.
+* **Unifies** Batch and Stream processing: The same APIs work on both sources of data.
+* Flexible: Start working on your laptop, continue on a server, deploy on a cluster.
+* **ML Streaming Serving**: Serve your machine learning model as a Kafka micro-service.
 
 Installation
 ==============
 
-The Maki Nage CLI tools are available on pypi:
+Maki Nage is available on PyPI:
 
 .. code:: console
 
@@ -36,9 +49,80 @@ The Maki Nage CLI tools are available on pypi:
 Getting started
 ===============
 
-An application can be started by providing its manifest file. See the
-`documentation <https://www.makinage.org/doc/makinage-book/latest/index.html>`_
-for more information.
+Write your data transforms
+---------------------------
+
+.. code:: Python
+
+    import rx
+    import rxsci as rs
+
+    def rolling_mean():
+        return rx.pipe(            
+            rs.data.roll(window=3, stride=3, pipeline=rx.pipe(
+                rs.math.mean(reduce=True),
+            )),
+        )
+
+Test your code on batch data
+-------------------------------
+
+You can test your code from any python data or CSV file.
+
+.. code:: Python
+
+    data = [1, 2, 3, 4, 5, 6, 7]
+
+    rx.from_(data).pipe(
+        rs.state.with_memory_store(rx.pipe(
+            rolling_mean(),
+        )),
+    ).subscribe(
+        on_next=print
+    )
+
+.. code:: console
+
+    2.0
+    5.0
+
+
+Deploy your code as a Kafka micro-service
+-------------------------------------------
+
+To deploy the code, package it as a function:
+
+.. code:: Python
+
+    def my_app(config, data):
+        roll_mean = rx.from_(data).pipe(
+            rs.state.with_memory_store(rx.pipe(
+                rolling_mean(),
+            )),
+        )
+
+        return roll_mean,
+
+Create a configuration file:
+
+.. code:: yaml
+
+    application:
+        name: my_app
+    kafka:
+        endpoint: "localhost"
+    topics:
+        - name: data
+        - name: features
+    operators:
+        compute_house_features:
+            factory: my_app:my_app
+            sources:
+                - data
+            sinks:
+                - features
+
+And start it!
 
 .. code:: console
 
