@@ -28,6 +28,7 @@ data, and deploy it as a **Kafka micro-service**.
 to learn more.
 
 .. image:: https://github.com/maki-nage/makinage/raw/master/asset/graph.png
+    :width: 50%
 
 Main Features
 ==============
