@@ -163,7 +163,7 @@ learning model in streaming mode just requires a configuration file:
     config:
       serve: {}
 
-And them serving the model it done the same way than any makinage application:
+And then serving the model it done the same way than any makinage application:
 
 .. code:: console
 
