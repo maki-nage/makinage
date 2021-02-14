@@ -27,6 +27,8 @@ data, and deploy it as a **Kafka micro-service**.
 `Read the book <https://www.makinage.org/doc/makinage-book/latest/index.html>`_
 to learn more.
 
+.. image:: https://github.com/maki-nage/makinage/raw/master/asset/graph.png
+
 Main Features
 ==============
 
