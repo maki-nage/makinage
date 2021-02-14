@@ -127,3 +127,62 @@ And start it!
 .. code:: console
 
     makinage --config myconfig.yaml
+
+
+Serve Machine Learning Models
+===============================
+
+Maki Nage contains a model serving tool. With it, serving a machine
+learning model in streaming mode just requires a configuration file:
+
+.. code:: yaml
+
+    application:
+        name: my_model_serving
+    Kafka:
+        endpoint: "localhost"
+    topics:
+    - name: data
+      encoder: makinage.encoding.json
+    - name: model
+      encoder: makinage.encoding.none
+      start_from: last
+    - name: predict
+      encoder: makinage.encoding.json
+    operators:
+      serve:
+        factory: makinage.serve:serve
+        sources:
+          - model
+          - data
+        sinks:
+          - predict
+    config:
+      serve: {}
+
+And them serving the model it done the same way than any makinage application:
+
+.. code:: console
+
+    makinage --config config.serve.yaml
+
+
+Some pre and post processing steps are possible if input features or predictions
+must be modified before/after the inference:
+
+.. image:: https://github.com/maki-nage/makinage/raw/master/asset/serve.png
+
+`Read the book <https://www.makinage.org/doc/makinage-book/latest/serving.html#>`_
+to learn more.
+
+
+Publications
+===============
+
+* Toward Data Science: `Stream Processing Made Easy <https://towardsdatascience.com/stream-processing-made-easy-5f4892736623>`_
+
+
+License
+=========
+
+Maki Nage is publised under the MIT License.
