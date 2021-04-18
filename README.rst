@@ -18,11 +18,11 @@ Stream Processing Made Easy
     :alt: Documentation
 
 
-Maki Nage is a Python stream processing framework for data scientists. It
-provides **expressive** and **extensible** APIs, allowing to speed up the
-development of stream applications. It can be used to process **stream** and
-**batch** data. More than that, it allows to develop an application with batch
-data, and deploy it as a **Kafka micro-service**.
+Maki Nage is a Python stream processing library and framework. It provides
+**expressive** and **extensible** APIs. Maki Nage speeds up the development of
+stream applications. It can be used to process **stream** and **batch** data.
+More than that, it allows to develop an application with batch data, and deploy
+it as a **Kafka micro-service**.
 
 `Read the book <https://www.makinage.org/doc/makinage-book/latest/index.html>`_
 to learn more.
