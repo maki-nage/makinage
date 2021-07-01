@@ -30,6 +30,7 @@ kafka (object)
 This section contains the kafka configuration. It contains the following fields:
 
 * endpoint: [string] The kafka server endpoint. e.g. "localhost"
+* dataflow_mode: [string] How to work with incoming data. Default: streaming. Possible values are [streaming|batch]
 
 topics (list)
 ------------------
@@ -41,6 +42,8 @@ Each entry contains the following fields:
 * encoder: [module, optional] The encoder used for kafka records. default: "makinage.encoding.string"
 * partition_selector: [function, optional]. default: int(random.random() * 1000)
 * start_from: [string, optional]. Defines how records are consumed on service reload. possible values are [end|beginning|last]. default: "end"
+* timestamp_mapper: [function] The mapper used to extract the timestamp value from incoming records.
+* merge_lookup_depth: [integer] The depth used to order the reads on the topics partitions (in number of items). Default: 1.
 
 operators (object)
 ------------------

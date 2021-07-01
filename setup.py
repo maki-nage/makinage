@@ -20,6 +20,8 @@ pytest_runner = ['pytest-runner'] if needs_pytest else []
 python_requires = '>=3.6'
 install_requires = [
     'Rx>=3.0',
+    'rxsci>=0.11',
+    'rxx>=0.1',
     'PyYAML>=5.3',
     'cyclotron>=1.2',
     'cyclotron-std>=1.0',

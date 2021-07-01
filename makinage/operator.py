@@ -8,6 +8,8 @@ import rx
 import rx.operators as ops
 from rx.scheduler.eventloop import AsyncIOScheduler
 
+import rxx
+
 from cyclotron.backpressure import pid
 from cyclotron.debug import trace_observable
 import cyclotron_aiokafka as kafka
@@ -20,7 +22,13 @@ def initialize_topics(config_topics):
 
     If no encoding os provided, then the string encoder is used by default.
     '''
-    Topic = namedtuple('Topic', ['encode', 'decode', 'map_partition', 'start_from'])
+    Topic = namedtuple('Topic', [
+        'name',
+        'encode', 'decode',
+        'map_partition',
+        'start_from', 'timestamp_mapper',
+        'merge_lookup_depth',
+    ])
 
     topics = {}
     for topic in config_topics:
@@ -42,11 +50,23 @@ def initialize_topics(config_topics):
         else:
             start_from = 'end'
 
+        if "timestamp_mapper" in topic:
+            timestamp_mapper = import_function(topic['timestamp_mapper'])
+        else:
+            timestamp_mapper = None
+
+        merge_lookup_depth = 1
+        if "merge_lookup_depth" in topic:
+            merge_lookup_depth = topic['merge_lookup_depth']
+
         topics[topic['name']] = Topic(
+            name=topic['name'],
             encode=encode,
             decode=decode,
             map_partition=map_partition,
             start_from=start_from,
+            timestamp_mapper=timestamp_mapper,
+            merge_lookup_depth=merge_lookup_depth,
         )
 
     return topics
@@ -73,13 +93,18 @@ def initialize_regulators(config, kafka_feedback):
     return regulators
 
 
-def create_source_observable(kafka_source, source):
+def create_source_observable(kafka_source, topic):
     return kafka_source.pipe(
-        trace_observable(prefix="kafka source {}".format(source)),
-        ops.filter(lambda i: i.topic == source),  # ConsumerRecords
-        trace_observable(prefix="kafka consumer records {}".format(source)),
-        ops.flat_map(lambda i: i.records),  # ConsumerRecord
+        ops.filter(lambda i: i.topic == topic.name),  # ConsumerRecords
+        ops.flat_map(lambda i: i.records.pipe(
+            rxx.pullable.sorted_merge(
+                key_mapper=topic.timestamp_mapper,
+                lookup_size=topic.merge_lookup_depth,
+            ),
+            rxx.pullable.push(),
+        )),
     )
+
 
 def create_operators(config, config_source, kafka_source, kafka_feedback):
     ''' creates the operators declared in config
@@ -92,6 +117,10 @@ def create_operators(config, config_source, kafka_source, kafka_feedback):
         An observable containing tuples of (topic, observable).
     '''
     try:
+        dataflow_mode = 'streaming'
+        if "dataflow_mode" in config['application']:
+            dataflow_mode = config['application']['dataflow_mode']
+
         topics = initialize_topics(config['topics'])
         if 'regulators' in config:
             regulators = initialize_regulators(
@@ -114,7 +143,9 @@ def create_operators(config, config_source, kafka_source, kafka_feedback):
                         start_from=topics[source].start_from,
                     ))
 
-                    sources.append(create_source_observable(kafka_source, source))
+                    sources.append(create_source_observable(
+                        kafka_source, topics[source],
+                    ))
 
             print(sources)
             sinks = factory(config_source, *sources)
@@ -136,6 +167,7 @@ def create_operators(config, config_source, kafka_source, kafka_feedback):
                 server=config['kafka']['endpoint'],
                 group=config['application']['name'],
                 topics=rx.from_(set(consumers)),
+                mode=dataflow_mode,
             ))
 
         if len(producers) > 0:

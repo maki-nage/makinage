@@ -33,6 +33,9 @@ Values = namedtuple('Values', ['id', 'observable'])
 
 
 def makinage(aio_scheduler, sources):
+    def on_error(e):
+        raise e
+
     config, read_request, http_request = read_config_from_args(
         sources.argv.argv,
         sources.file.response,
@@ -48,7 +51,7 @@ def makinage(aio_scheduler, sources):
         ops.ref_count(),
         trace_observable("kafka source2"),
     )
-    kafka_source.subscribe()
+    kafka_source.subscribe(on_error=on_error)
 
     kafka_request = first_config.pipe(
         ops.flat_map(lambda i: create_operators(
