@@ -30,6 +30,7 @@ def initialize_topics(config_topics):
         'merge_lookup_depth',
     ])
 
+    pull_mode = False
     topics = {}
     for topic in config_topics:
         if "encoder" in topic:
@@ -52,6 +53,7 @@ def initialize_topics(config_topics):
 
         if "timestamp_mapper" in topic:
             timestamp_mapper = import_function(topic['timestamp_mapper'])
+            pull_mode = True
         else:
             timestamp_mapper = None
 
@@ -69,7 +71,7 @@ def initialize_topics(config_topics):
             merge_lookup_depth=merge_lookup_depth,
         )
 
-    return topics
+    return topics, pull_mode
 
 
 def initialize_regulators(config, kafka_feedback):
@@ -94,16 +96,24 @@ def initialize_regulators(config, kafka_feedback):
 
 
 def create_source_observable(kafka_source, topic):
-    return kafka_source.pipe(
-        ops.filter(lambda i: i.topic == topic.name),  # ConsumerRecords
-        ops.flat_map(lambda i: i.records.pipe(
-            rxx.pullable.sorted_merge(
-                key_mapper=topic.timestamp_mapper,
-                lookup_size=topic.merge_lookup_depth,
-            ),
-            rxx.pullable.push(),
-        )),
-    )
+    if topic.timestamp_mapper is not None:  # pull mode
+        return kafka_source.pipe(
+            ops.filter(lambda i: i.topic == topic.name),  # ConsumerRecords
+            ops.flat_map(lambda i: i.records.pipe(
+                rxx.pullable.sorted_merge(
+                    key_mapper=topic.timestamp_mapper,
+                    lookup_size=topic.merge_lookup_depth,
+                ),
+                rxx.pullable.push(),
+            )),
+        )
+    else:  # push mode
+        return kafka_source.pipe(
+            ops.filter(lambda i: i.topic == topic.name),  # ConsumerRecords
+            ops.flat_map(lambda i: i.records.pipe(
+                ops.merge_all(),
+            )),
+        )
 
 
 def create_operators(config, config_source, kafka_source, kafka_feedback):
@@ -117,11 +127,12 @@ def create_operators(config, config_source, kafka_source, kafka_feedback):
         An observable containing tuples of (topic, observable).
     '''
     try:
-        dataflow_mode = 'streaming'
-        if "dataflow_mode" in config['application']:
-            dataflow_mode = config['application']['dataflow_mode']
+        source_type = kafka.DataSourceType.STREAM
+        if "source_type" in config['application']:
+            source_type = kafka.DataSourceType.BATCH if config['application']['source_type'] == "batch" else kafka.DataSourceType.STREAM
 
-        topics = initialize_topics(config['topics'])
+        topics, pull_mode = initialize_topics(config['topics'])
+        datafeed_mode = kafka.DataFeedMode.PULL if pull_mode is True else kafka.DataFeedMode.PUSH
         if 'regulators' in config:
             regulators = initialize_regulators(
                 config['regulators'],
@@ -167,7 +178,8 @@ def create_operators(config, config_source, kafka_source, kafka_feedback):
                 server=config['kafka']['endpoint'],
                 group=config['application']['name'],
                 topics=rx.from_(set(consumers)),
-                mode=dataflow_mode,
+                source_type=source_type,
+                feed_mode=datafeed_mode,
             ))
 
         if len(producers) > 0:

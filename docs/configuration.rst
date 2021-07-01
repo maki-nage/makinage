@@ -23,6 +23,7 @@ application (object)
 This section contains information on the application.
 
 * name: The name of the application. This name is used as the kafka consumer group.
+* source_type: [string] How to work with incoming data. Default: stream. Possible values are [stream|batch]
 
 kafka (object)
 ------------------
@@ -30,7 +31,6 @@ kafka (object)
 This section contains the kafka configuration. It contains the following fields:
 
 * endpoint: [string] The kafka server endpoint. e.g. "localhost"
-* dataflow_mode: [string] How to work with incoming data. Default: streaming. Possible values are [streaming|batch]
 
 topics (list)
 ------------------
