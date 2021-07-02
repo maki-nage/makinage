@@ -24,7 +24,7 @@ stream applications. It can be used to process **stream** and **batch** data.
 More than that, it allows to develop an application with batch data, and deploy
 it as a **Kafka micro-service**.
 
-`Read the book <https://www.makinage.org/doc/makinage-book/latest/index.html>`_
+`Read the doc <https://www.makinage.org/doc/makinage-book/latest/index.html>`_
 to learn more.
 
 .. image:: https://github.com/maki-nage/makinage/raw/master/asset/graph.png
