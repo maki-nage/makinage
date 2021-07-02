@@ -31,7 +31,7 @@ install_requires = [
 
 setup(
     name="makinage",
-    version='0.7.0',
+    version='0.7.1',
     url='https://github.com/maki-nage/makinage.git',
     license='MIT',
     description="Reactive data science",
