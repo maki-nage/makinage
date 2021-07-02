@@ -6,7 +6,8 @@ def test_init_topics():
         {'name': 'foo'},
         {'name': 'bar', 'encoder': 'makinage.encoding.string'},
     ]
-    topics = initialize_topics(config_topics)
+    topics, pull_mode = initialize_topics(config_topics)
+    assert pull_mode is False
     assert b'test' == topics['foo'].encode('test')
     assert 'test' == topics['foo'].decode(b'test')
 
