@@ -78,7 +78,7 @@ def initialize_regulators(config, kafka_feedback):
     regulators = {}
     for regulator in config:
         control = kafka_feedback.pipe(
-            trace_observable("regulator feedback"),
+            #trace_observable("regulator feedback"),
             ops.filter(lambda i: i[0] == regulator['feedback']),
             ops.map(lambda i: i[1] / 1000),
 
@@ -87,7 +87,8 @@ def initialize_regulators(config, kafka_feedback):
 
             #ops.map(lambda i: 1/i if i != 0 else 1.0),
             ops.map(lambda i: max(min(i, 0.01), 0.0)),
-            trace_observable("regulator"),
+            ops.filter(lambda i: i > 0),
+            #trace_observable("regulator"),
         )
 
         regulators[regulator['control']] = control
