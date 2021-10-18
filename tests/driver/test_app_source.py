@@ -45,9 +45,9 @@ async def test_controllable_source():
     control.on_next(1.0)
     await asyncio.sleep(0.2)
     assert actual_sleep == [1.0]
-    await asyncio.sleep(0.2)
+    await asyncio.sleep(0.4)
     assert actual_result == [0, 1, 2]
-    
+
     control.on_completed()
     await asyncio.sleep(0.5)
     assert actual_completed == [True]

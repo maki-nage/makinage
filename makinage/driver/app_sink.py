@@ -33,7 +33,7 @@ def create_controllable_sink(sink_id: str,
                              operator: Callable[[rx.Observable], rx.Observable],
                              sink: rx.Observable,
                              ) -> rx.Observable:
-    """Creates a controllable sink from a sink opreator
+    """Creates a controllable sink from a sink operator
 
     The sink operator must subscribe to its provided observable. All items are
     emitted on a thread dedicated to this operator. So it can do
@@ -62,7 +62,7 @@ def create_controllable_sink(sink_id: str,
                 index += 1
                 if index == 500:
                     index = 0
-                    return((sink_id, q.qsize()))
+                    return (sink_id, q.qsize())
             return None
         return ops.map(_push_item)
 
@@ -90,7 +90,7 @@ Create.observable.__doc__ = "The observable that will feed the sink."
 Feedback = namedtuple('Feedback', ['id', 'observable'])
 Feedback.__doc__ = "The feedback loop of a sink."
 Feedback.id.__doc__ = "The id of the sink."
-Feedback.observable.__doc__ = "The feedback observable, emitting xx items."
+Feedback.observable.__doc__ = "The feedback observable, emitting (id, qsize) items."
 
 
 def make_driver():

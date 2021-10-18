@@ -14,6 +14,7 @@ from cyclotron.backpressure import pid
 from cyclotron.debug import trace_observable
 import cyclotron_aiokafka as kafka
 
+from .driver import app_sink, app_source
 from .util import import_function
 
 
@@ -74,10 +75,30 @@ def initialize_topics(config_topics):
     return topics, pull_mode
 
 
-def initialize_regulators(config, kafka_feedback):
+def subscribe_to_non_regulated_sinks(config, sinks_feedback):
+    """Ensures that all feedback observable are subscribed
+
+    The app sinks start consuming when their feedback observable is subscribed.
+    So we subscribe to all sinks that are not regulated.
+    """
+    if 'sinks' not in config:
+        return
+
+    regulated_sinks = []
+    if 'regulators' in config:
+        for regulator in config['regulators']:
+            regulated_sinks.append(regulator['feedback'])
+
+    sinks_feedback.pipe(
+        ops.filter(lambda i: i.id not in regulated_sinks),
+        ops.flat_map(lambda i: i.observable),
+    ).subscribe()
+
+
+def initialize_regulators(config, feedback):
     regulators = {}
     for regulator in config:
-        control = kafka_feedback.pipe(
+        control = feedback.pipe(
             #trace_observable("regulator feedback"),
             ops.filter(lambda i: i[0] == regulator['feedback']),
             ops.map(lambda i: i[1] / 1000),
@@ -96,7 +117,7 @@ def initialize_regulators(config, kafka_feedback):
     return regulators
 
 
-def create_source_observable(kafka_source, topic):
+def create_kafka_source_observable(kafka_source, topic):
     if topic.timestamp_mapper is not None:  # pull mode
         return kafka_source.pipe(
             ops.filter(lambda i: i.topic == topic.name),  # ConsumerRecords
@@ -117,11 +138,21 @@ def create_source_observable(kafka_source, topic):
         )
 
 
-def create_operators(config, config_source, kafka_source, kafka_feedback):
+def create_app_source_observable(source, source_id):
+    return source.pipe(
+        ops.filter(lambda i: i.id == source_id),  # ConsumerRecords
+        ops.flat_map(lambda i: i.observable),
+    )
+
+
+def create_operators(config, config_source,
+                     kafka_source, kafka_feedback,
+                     app_source_data, app_feedback):
     ''' creates the operators declared in config
 
     Args:
-        config: a dict containing the configuration file. todo: observable.
+        config: a dict containing the initial configuration file.
+        config_source: An observable emitting configuration items.
         kafka_source: The kafka response observable
         kafka_feedback: The kafka backpressure process feedback
     Returns:
@@ -140,24 +171,42 @@ def create_operators(config, config_source, kafka_source, kafka_feedback):
                 kafka_feedback)
         else:
             regulators = {}
+
+        subscribe_to_non_regulated_sinks(config, app_feedback)
+
         producers = []
         consumers = []
+        source_connectors = []
+        sink_connectors = []
         for k, operator in config['operators'].items():
             factory = import_function(operator['factory'])
             sources = []
             if 'sources' in operator:
                 for source in operator['sources']:
                     print('create source {}'.format(source))
-                    consumers.append(kafka.ConsumerTopic(
-                        topic=source,
-                        decode=topics[source].decode,
-                        control=regulators[source] if source in regulators else None,
-                        start_from=topics[source].start_from,
-                    ))
+                    if 'sources' in config and source in config['sources']:  # This is an app connector
+                        source_factory = import_function(config['sources'][source]['factory'])
+                        source_observable = source_factory(config_source)
+                        source_connectors.append(app_source.Create(
+                            id=source,
+                            observable=source_observable,
+                            control=regulators[source] if source in regulators else None,
+                        ))
 
-                    sources.append(create_source_observable(
-                        kafka_source, topics[source],
-                    ))
+                        sources.append(create_app_source_observable(
+                            app_source_data, source
+                        ))
+                    else:  # A kafka source
+                        consumers.append(kafka.ConsumerTopic(
+                            topic=source,
+                            decode=topics[source].decode,
+                            control=regulators[source] if source in regulators else None,
+                            start_from=topics[source].start_from,
+                        ))
+
+                        sources.append(create_kafka_source_observable(
+                            kafka_source, topics[source],
+                        ))
 
             print(sources)
             sinks = factory(config_source, *sources)
@@ -165,13 +214,22 @@ def create_operators(config, config_source, kafka_source, kafka_feedback):
             if 'sinks' in operator:
                 for index, sink in enumerate(operator['sinks']):
                     print('create sink {} at {}'.format(sink, index))
-                    producers.append(kafka.ProducerTopic(
-                        topic=sink,
-                        records=sinks[index],
-                        map_key=lambda i: None,
-                        encode=topics[sink].encode,
-                        map_partition=topics[sink].map_partition
-                    ))
+                    if 'sinks' in config and sink in config['sinks']:  # This is an app connector
+                        sink_factory = import_function(config['sinks'][sink]['factory'])
+                        sink_operator = sink_factory(config_source)
+                        sink_connectors.append(app_sink.Create(
+                            id=sink,
+                            operator=sink_operator,
+                            observable=sinks[index],
+                        ))
+                    else:  # Kafka
+                        producers.append(kafka.ProducerTopic(
+                            topic=sink,
+                            records=sinks[index],
+                            map_key=lambda i: None,
+                            encode=topics[sink].encode,
+                            map_partition=topics[sink].map_partition
+                        ))
 
         kafka_sink = []
         if len(consumers) > 0:
@@ -190,7 +248,11 @@ def create_operators(config, config_source, kafka_source, kafka_feedback):
             ))
 
         kafka_sink = rx.from_(kafka_sink) if len(kafka_sink) > 0 else rx.never()
-        return kafka_sink
+        source_connectors = rx.from_(source_connectors) if len(source_connectors) > 0 else rx.never()
+        sink_connectors = rx.from_(sink_connectors) if len(sink_connectors) > 0 else rx.never()
+
+        return rx.just((kafka_sink, source_connectors, sink_connectors))
+
     except Exception as e:
         print("Error while creating operators: {}, {}".format(
               e, traceback.format_exc()))

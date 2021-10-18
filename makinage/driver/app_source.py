@@ -29,25 +29,32 @@ def create_controllable_source(source, control, loop, sleep):
 
     Args:
         - source: An observable emitting the source items.
-        - control: The control observable emitting delay items in seconds.
+        - control: [Optional] The control observable emitting delay items in seconds.
         - sleep: the sleep function to used. Needed only for testing.
 
     Returns:
         An observable similar to the source observable, with emission being
         controlled by the control observable.
     """
-    typed_control = control.pipe(
-        ops.observe_on(NewThreadScheduler()),
-        ops.map(ControlItem),
-    )
+    if control is not None:
+        typed_control = control.pipe(
+            ops.observe_on(NewThreadScheduler()),
+            ops.map(ControlItem),
+        )
 
-    scheduled_source = source.pipe(
-        ops.subscribe_on(NewThreadScheduler()),
-        ops.merge(typed_control),
-        ops.map(lambda i: control_sync(i, sleep)),
-        ops.filter(lambda i: i is not ControlItem),
-        ops.observe_on(AsyncIOThreadSafeScheduler(loop)),
-    )
+        scheduled_source = source.pipe(
+            ops.subscribe_on(NewThreadScheduler()),
+            ops.merge(typed_control),
+            ops.map(lambda i: control_sync(i, sleep)),
+            ops.filter(lambda i: i is not ControlItem),
+            ops.observe_on(AsyncIOThreadSafeScheduler(loop)),
+        )
+    else:
+        scheduled_source = source.pipe(
+            ops.subscribe_on(NewThreadScheduler()),
+            ops.observe_on(AsyncIOThreadSafeScheduler(loop)),
+        )
+
     return scheduled_source
 
 
@@ -75,7 +82,6 @@ def make_driver(sleep=time.sleep, loop=None):
     def driver(sink):
         def on_subscribe(observer, scheduler):
             _scheduler = scheduler or AsyncIOThreadSafeScheduler(loop)
-            print(_scheduler)
 
             def on_next(i):
                 if type(i) is Create:
