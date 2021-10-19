@@ -183,7 +183,7 @@ Publications
 ===============
 
 * Toward Data Science: `Stream Processing Made Easy <https://towardsdatascience.com/stream-processing-made-easy-5f4892736623>`_
-
+* KDnuggets: `Real-Time Histogram Plots on Unbounded Data <https://www.kdnuggets.com/2021/09/real-time-histogram-plots-unbounded-data.html>`_
 
 License
 =========
