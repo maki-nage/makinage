@@ -23,9 +23,9 @@ install_requires = [
     'rxsci>=0.11',
     'rxx>=0.1',
     'PyYAML>=5.3',
-    'cyclotron>=1.2',
+    'cyclotron>=1.3',
     'cyclotron-std>=1.0',
-    'cyclotron-aiokafka>=0.5',
+    'cyclotron-aiokafka>=0.6',
     'cyclotron-consul>=0.1',
 ]
 
