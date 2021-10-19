@@ -3,9 +3,12 @@ from collections import namedtuple
 
 from rx.subject import Subject
 
-from makinage.serve.serve import create_transform_functions, \
-    create_model_predict, infer, serve
-from makinage.sample.serve import ZeroModel, predict_zero
+try:
+    from makinage.serve.serve import create_transform_functions, \
+        create_model_predict, infer, serve
+    from makinage.sample.serve import ZeroModel, predict_zero
+except ModuleNotFoundError:
+    pass
 
 import numpy as np
 
