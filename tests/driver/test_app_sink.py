@@ -82,7 +82,7 @@ async def test_driver():
 
     source.feedback.pipe(
         ops.do_action(print),
-        rs.ops.assert_(lambda i: i.id is 'test'),
+        rs.ops.assert_(lambda i: i.id == 'test'),
         ops.flat_map(lambda i: i.observable),
     ).subscribe(
         on_next=feedback_result.append,

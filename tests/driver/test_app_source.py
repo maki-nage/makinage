@@ -76,7 +76,7 @@ async def test_driver():
     ))
 
     controllable_source.source.pipe(
-        rs.ops.assert_(lambda i: i.id is 'test'),
+        rs.ops.assert_(lambda i: i.id == 'test'),
         ops.flat_map(lambda i: i.observable),
     ).subscribe_(
         on_next=actual_result.append,
