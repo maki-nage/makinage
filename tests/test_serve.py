@@ -1,14 +1,13 @@
 import os
+import pytest
 from collections import namedtuple
 
 from rx.subject import Subject
 
-try:
-    from makinage.serve.serve import create_transform_functions, \
-        create_model_predict, infer, serve
-    from makinage.sample.serve import ZeroModel, predict_zero
-except ModuleNotFoundError:
-    pass
+serve = pytest.importorskip("makinage.sample.serve")
+from makinage.serve.serve import create_transform_functions, \
+    create_model_predict, infer, serve
+from makinage.sample.serve import ZeroModel, predict_zero
 
 import numpy as np
 

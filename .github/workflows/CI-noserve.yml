@@ -31,4 +31,4 @@ jobs:
       run: |
         pip install -r requirements_test.txt
         pip install pytest
-        pytest -k "not test_serve"
+        pytest
