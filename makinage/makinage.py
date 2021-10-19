@@ -92,14 +92,7 @@ def makinage(aio_scheduler, sources):
     )
     app_sources.subscribe(on_error=on_error)
 
-    app_sinks_feedback = sources.app_sink.feedback.pipe(
-        trace_observable("app sink1"),
-        ops.replay(),
-        ops.ref_count(),
-        trace_observable("app sink2"),
-    )
-    app_sinks_feedback.subscribe(on_error=on_error)
-
+    app_sinks_feedback = sources.app_sink.feedback
     operators_sinks = first_config.pipe(
         ops.flat_map(lambda i: create_operators(
             i, config,

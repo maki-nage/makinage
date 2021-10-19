@@ -10,7 +10,6 @@ from makinage.sample.serve import ZeroModel, predict_zero
 import numpy as np
 
 zero_model_dirname = os.path.join('assets', 'zero_mlflow_pyfunc.zip')
-TestModel = namedtuple('TestModel', ['predict'])
 
 
 def test_create_transform_default():

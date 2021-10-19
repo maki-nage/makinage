@@ -95,25 +95,38 @@ def subscribe_to_non_regulated_sinks(config, sinks_feedback):
     ).subscribe()
 
 
-def initialize_regulators(config, feedback):
+def initialize_regulators(config, kafka_feedback, app_feedback):
     regulators = {}
-    for regulator in config:
+    app_regulators = []
+    for regulator in config['regulators']:
+        app = False
+        if 'sinks' in config and regulator['feedback'] in config['sinks']:  # app sink feedback
+            app = True
+            feedback = app_feedback.pipe(
+                ops.filter(lambda i: i.id == regulator['feedback']),
+                ops.flat_map(lambda i: i.observable),
+            )
+        else:  # kafka sink feedback
+            feedback = kafka_feedback.pipe(
+                ops.filter(lambda i: i[0] == regulator['feedback']),
+            )
+
         control = feedback.pipe(
-            #trace_observable("regulator feedback"),
-            ops.filter(lambda i: i[0] == regulator['feedback']),
             ops.map(lambda i: i[1] / 1000),
-
-            pid(rx.concat(rx.just(1.0), rx.never()),
-                -0.001, -0.001, 0.0),
-
-            #ops.map(lambda i: 1/i if i != 0 else 1.0),
+            pid(rx.concat(rx.just(1.0), rx.never()), -0.001, -0.001, 0.0),
             ops.map(lambda i: max(min(i, 0.01), 0.0)),
             ops.filter(lambda i: i > 0),
-            #trace_observable("regulator"),
+            ops.share(),
         )
 
         regulators[regulator['control']] = control
+        if app:
+            app_regulators.append(control)
 
+    for app_control in app_regulators:
+        app_control.subscribe()
+
+    print(regulators)
     return regulators
 
 
@@ -131,6 +144,7 @@ def create_kafka_source_observable(kafka_source, topic):
         )
     else:  # push mode
         return kafka_source.pipe(
+            trace_observable("kafka tst"),
             ops.filter(lambda i: i.topic == topic.name),  # ConsumerRecords
             ops.flat_map(lambda i: i.records.pipe(
                 ops.merge_all(),
@@ -167,8 +181,9 @@ def create_operators(config, config_source,
         datafeed_mode = kafka.DataFeedMode.PULL if pull_mode is True else kafka.DataFeedMode.PUSH
         if 'regulators' in config:
             regulators = initialize_regulators(
-                config['regulators'],
-                kafka_feedback)
+                config,
+                kafka_feedback, app_feedback,
+            )
         else:
             regulators = {}
 
@@ -185,8 +200,10 @@ def create_operators(config, config_source,
                 for source in operator['sources']:
                     print('create source {}'.format(source))
                     if 'sources' in config and source in config['sources']:  # This is an app connector
-                        source_factory = import_function(config['sources'][source]['factory'])
-                        source_observable = source_factory(config_source)
+                        source_config = config['sources'][source]
+                        source_kwargs = source_config.get('kwargs', None)
+                        source_factory = import_function(source_config['factory'], source_kwargs)
+                        source_observable = source_factory()
                         source_connectors.append(app_source.Create(
                             id=source,
                             observable=source_observable,
@@ -215,8 +232,10 @@ def create_operators(config, config_source,
                 for index, sink in enumerate(operator['sinks']):
                     print('create sink {} at {}'.format(sink, index))
                     if 'sinks' in config and sink in config['sinks']:  # This is an app connector
-                        sink_factory = import_function(config['sinks'][sink]['factory'])
-                        sink_operator = sink_factory(config_source)
+                        sink_config = config['sinks'][sink]
+                        sink_kwargs = sink_config.get('kwargs', None)
+                        sink_factory = import_function(sink_config['factory'], sink_kwargs)
+                        sink_operator = sink_factory()
                         sink_connectors.append(app_sink.Create(
                             id=sink,
                             operator=sink_operator,
