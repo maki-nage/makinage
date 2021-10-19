@@ -4,7 +4,7 @@ from collections import namedtuple
 
 from rx.subject import Subject
 
-serve = pytest.importorskip("makinage.sample.serve")
+pytest.importorskip("makinage.serve.serve")
 from makinage.serve.serve import create_transform_functions, \
     create_model_predict, infer, serve
 from makinage.sample.serve import ZeroModel, predict_zero
