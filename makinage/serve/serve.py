@@ -5,6 +5,7 @@ import traceback
 from collections import namedtuple
 
 
+import rx
 import rx.operators as ops
 import rxsci as rs
 from cyclotron.debug import trace_observable
@@ -14,7 +15,8 @@ from mlflow.pyfunc import load_model
 from mlflow.pyfunc.backend import PyFuncBackend
 import numpy as np
 
-Transforms = namedtuple('Transforms', ['pre', 'post'])
+
+Transforms = namedtuple('Transforms', ['batch', 'pre', 'post'])
 
 
 def load_mlflow_model(data):
@@ -43,10 +45,10 @@ def create_model_predict(model, config):
 
 def infer(data, transforms, predict):
     try:
-        prediction = transforms.pre(data)
-        if prediction is not None:
+        data, prediction = transforms.pre(data)
+        if len(prediction) > 0:
             prediction = predict(prediction)
-        if prediction is not None:
+        if len(prediction) > 0:
             prediction = transforms.post(data, prediction)
         return prediction
     except Exception as e:
@@ -60,15 +62,43 @@ def create_transform_functions(config):
         pre_transform = import_function(config['config']['serve']['pre_transform'])
         pre_transform = pre_transform(config)
     else:
-        pre_transform = np.array
+        def pre_transform(utterance): return utterance, np.array(utterance)
 
     if 'post_transform' in config['config']['serve']:
         post_transform = import_function(config['config']['serve']['post_transform'])
         post_transform = post_transform(config)
     else:
-        def post_transform(utterance, prediction): return utterance, prediction
+        def post_transform(utterance, prediction):
+            return [(i[0], i[1]) for i in zip(utterance, prediction)]
 
-    return Transforms(pre_transform, post_transform)
+    if 'batch' in config['config']['serve']:
+        batch = config['config']['serve']['batch']
+    else:
+        batch = 1
+
+    return Transforms(batch, pre_transform, post_transform)
+
+
+def batch():
+    """batch utterances before doing a prediction
+
+    If a configuration update happens in the middle of a batch, then the latest
+    configuration is applied to the pending utterances.
+    """
+    def _batch(acc, i):
+        """i is the (data, transforms, predict) tuple
+        """
+        acc[-1].append(i[0])
+        if len(acc[-1]) == i[1].batch:
+            return (acc[-1], i[1], i[2], [])
+        else:
+            return (None, None, None, acc[-1])
+
+    return rx.pipe(
+        ops.scan(_batch, seed=(None, None, None, [])),
+        ops.filter(lambda i: i[0] is not None),
+        ops.map(lambda i: (i[0], i[1], i[2]))
+    )
 
 
 def serve(config, model, data):
@@ -109,7 +139,9 @@ def serve(config, model, data):
 
     prediction = data.pipe(
         rs.ops.with_latest_from(transforms, predict),
+        batch(),
         ops.starmap(infer),
+        ops.flat_map(lambda i: rx.from_(i)),
         ops.filter(lambda i: i is not None),
     )
 

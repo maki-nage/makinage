@@ -17,8 +17,8 @@ zero_model_dirname = os.path.join('assets', 'zero_mlflow_pyfunc.zip')
 def test_create_transform_default():
     c = {'config': {'serve': {}}}
     t = create_transform_functions(c)
-    assert t.pre == np.array
-    assert t.post(1, 1) == (1, 1)
+    assert t.pre([1]) == ([1], np.array([1]))
+    assert t.post([1], [1]) == [(1, 1)]
 
 
 def test_create_predict_default():
@@ -36,7 +36,7 @@ def test_create_predict_custom():
 
     model = ZeroModel()
     p = create_model_predict(model, c)
-    assert p(2) == (0.0, 4)
+    assert p(np.array([2])) == [(0.0, 4)]
 
 
 def test_predict():
@@ -44,8 +44,8 @@ def test_predict():
 
     def _predict(i):
         nonlocal predict_count
-        predict_count += 1
-        return np.array([i+1])
+        predict_count += len(i)
+        return np.array([i]) + 1
 
     c = {'config': {'serve': {
         'pre_transform': 'makinage.sample.serve:pre_transform',
@@ -53,11 +53,15 @@ def test_predict():
         'input_field': 'x', 'output_field': 'pred',
     }}}
     t = create_transform_functions(c)
-    data = {'x': 42}
+    data = [
+        {'x': 42},
+    ]
     actual_result = infer(data, t, _predict)
 
     assert predict_count == 1
-    assert actual_result == {'x': 42, 'pred': [43]}
+    assert actual_result == [
+        {'x': 42, 'pred': [43]}
+    ]
 
 
 def test_serve():
@@ -93,4 +97,35 @@ def test_serve():
     data.on_next(1)
     assert actual_predictions == [
         (1, (0.0, 3))
+    ]
+
+
+def test_serve_batch():
+    config = Subject()
+    model = Subject()
+    data = Subject()
+    prediction, = serve(config, model, data)
+
+    actual_predictions = []
+    prediction.subscribe(on_next=actual_predictions.append)
+
+    config.on_next({'config': {'serve': {
+        'predict': 'makinage.sample.serve:predict',
+        'batch': 3,
+        'ratio': 2,
+    }}})
+
+    with open(zero_model_dirname, 'rb') as fd:
+        model_archive_data = fd.read()
+    model.on_next(model_archive_data)
+
+    data.on_next(1)
+    data.on_next(1)
+    assert actual_predictions == []
+
+    data.on_next(1)
+    assert actual_predictions == [
+        (1, (0.0, 2)),
+        (1, (0.0, 2)),
+        (1, (0.0, 2)),
     ]
