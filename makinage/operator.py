@@ -255,6 +255,7 @@ def create_operators(config, config_source,
             kafka_sink.append(kafka.Consumer(
                 server=config['kafka']['endpoint'],
                 group=config['application']['name'],
+                max_partition_fetch_bytes=config['application'].get('max_partition_fetch_bytes', 512000000),
                 topics=rx.from_(set(consumers)),
                 source_type=source_type,
                 feed_mode=datafeed_mode,
@@ -263,6 +264,7 @@ def create_operators(config, config_source,
         if len(producers) > 0:
             kafka_sink.append(kafka.Producer(
                 server=config['kafka']['endpoint'],
+                max_request_size=config['application'].get('max_request_size', 512000000),
                 topics=rx.from_(producers)
             ))
 
